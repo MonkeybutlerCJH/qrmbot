@@ -346,6 +346,17 @@ sub renderLiveGame {
       $names{$id} = $p->{athlete}{fullName} // '';
     }
   }
+  # boxscore covers everyone who has played, including relief pitchers;
+  # rosters alone are just the starting lineups
+  foreach my $t (@{$sum->{boxscore}{players} // []}) {
+    foreach my $st (@{$t->{statistics} // []}) {
+      foreach my $a (@{$st->{athletes} // []}) {
+        my $id = $a->{athlete}{id};
+        next unless defined $id;
+        $names{$id} = $a->{athlete}{displayName} if $a->{athlete}{displayName};
+      }
+    }
+  }
 
   # current matchup
   my $offAbbr = $half eq 'Top' ? tabbr($g->{away}) :
