@@ -282,6 +282,35 @@ sub score {
   return ref($s) eq 'HASH' ? ($s->{displayValue} // 0) : ($s // 0);
 }
 
+# the schedule endpoint leaves scores null until the game goes final; pull
+# real scores from the scoreboard endpoint for the game date
+sub refreshScores {
+  my ($g) = @_;
+  return unless $g->{id} && $g->{date} =~ /^(\d{4})-(\d{2})-(\d{2})/;
+  my $data = fetchJSON("$API/scoreboard?dates=$1$2$3");
+  return unless $data && $data->{events};
+  foreach my $ev (@{$data->{events}}) {
+    next unless ($ev->{id} // '') eq $g->{id};
+    foreach my $c (@{$ev->{competitions}[0]{competitors} // []}) {
+      my $side = ($c->{homeAway} // '') eq 'home' ? $g->{home} : $g->{away};
+      next unless $side;
+      $side->{score} = $c->{score};
+    }
+    last;
+  }
+}
+
+# true if either competitor's score is absent (null or empty)
+sub scoresMissing {
+  my ($g) = @_;
+  foreach my $c ($g->{away} // {}, $g->{home} // {}) {
+    my $s = $c->{score};
+    $s = ref($s) eq 'HASH' ? ($s->{displayValue} // '') : $s;
+    return 1 unless defined $s && $s ne '';
+  }
+  return 0;
+}
+
 sub tabbr {
   my $c = shift // {};
   return $c->{team}{abbreviation} // '???';
@@ -451,8 +480,10 @@ my ($liveGame, $lastGame, $nextGame);
 foreach my $ev (@{$sched->{events}}) {
   my $g = getGame($ev);
   if ($g->{state} eq 'in') {
+    refreshScores($g) if scoresMissing($g);
     $liveGame = $g;
   } elsif ($g->{state} eq 'post' && $g->{date} le $today) {
+    refreshScores($g) if scoresMissing($g);
     $lastGame = $g;
   } elsif ($g->{state} ne 'post' && $g->{date} ge $today && !defined $nextGame) {
     $nextGame = $g;
