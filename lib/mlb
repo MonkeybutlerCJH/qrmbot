@@ -32,7 +32,7 @@ $exitnonzeroonerror = 0 if $username eq getEggdropUID();
 our $scrapingant_key=undef;
 my $scrapingantfile = $ENV{'HOME'} . "/.qrmbot/keys/scrapingantkey";
 if (-e ($scrapingantfile)) {
-  #require($scrapingantfile);
+  require($scrapingantfile);
 }
 
 # eggdrop passes all args as one string
